@@ -1,0 +1,113 @@
+package com.example.libkotdesktop
+
+import java.awt.Dimension
+import java.awt.Font
+import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.StandardOpenOption
+import java.util.*
+import javax.swing.JFileChooser
+import javax.swing.UIManager
+import javax.swing.plaf.FontUIResource
+
+fun main() {
+    val defaultFont = UIManager.getFont("Label.font")
+
+    if (defaultFont != null) {
+        val newFont = Font(defaultFont.name, defaultFont.style, defaultFont.size + 4)
+        setUIFont(newFont)
+        val chooser = JFileChooser()
+        chooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+        chooser.preferredSize = Dimension(900, 700)  // Set the preferred size here
+//        chooser.pack()
+        chooser.fileSelectionMode = JFileChooser.DIRECTORIES_ONLY
+
+        val defaultFont = UIManager.getFont("Label.font")
+
+        if (defaultFont != null) {
+            val newFont = Font(defaultFont.name, defaultFont.style, defaultFont.size)
+
+            val keys = UIManager.getLookAndFeelDefaults().keys()
+            while (keys.hasMoreElements()) {
+                val key = keys.nextElement()
+                if (key.toString().lowercase(Locale.getDefault()).contains("font")) {
+                    UIManager.put(key, newFont)
+                }
+            }
+        }
+
+        val result = chooser.showOpenDialog(null)
+
+        val selectedDir = if (result == JFileChooser.APPROVE_OPTION) chooser.selectedFile else null
+        val hardcodedPath = selectedDir?.absolutePath ?: "C:\\Users\\dilij\\AndroidStudioProjects\\chatgpt35dragdroplistview"
+
+        val ktOutputFile = "concatenated_kt_files.kt"
+        val xmlOutputFile = "concatenated_xml_files.xml"
+        val gradleOutputFile = "concatenated_gradle_files.gradle"
+        val allOutputFile = "concatenated_all_files.txt"
+
+        val ktFiles = mutableListOf<File>()
+        val xmlFiles = mutableListOf<File>()
+        val gradleFiles = mutableListOf<File>()
+
+        val dir = File(hardcodedPath)
+        dir.walk().forEach { file ->
+            if (file.isFile) {
+                when (file.extension) {
+                    "kt" -> {
+                        if (file.parentFile.absolutePath.contains(File.separator + "main" + File.separator)) {
+                            ktFiles.add(file)
+                        }
+                    }
+                    "xml" -> {
+                        if (file.parentFile.absolutePath.contains(File.separator + "res" + File.separator) &&
+                            (file.parentFile.name == "layout" || file.parentFile.name == "values") &&
+                            !file.parentFile.absolutePath.contains(File.separator + "debug" + File.separator)
+                        ) {
+                            xmlFiles.add(file)
+                        }
+                    }
+                    "gradle" -> gradleFiles.add(file)
+                }
+            }
+        }
+
+        concatenateFiles(ktFiles, Paths.get(hardcodedPath, ktOutputFile).toString())
+        concatenateFiles(xmlFiles, Paths.get(hardcodedPath, xmlOutputFile).toString())
+        concatenateFiles(gradleFiles, Paths.get(hardcodedPath, gradleOutputFile).toString())
+
+        val allFiles = listOf(
+            Paths.get(hardcodedPath, ktOutputFile).toFile(),
+            Paths.get(hardcodedPath, xmlOutputFile).toFile(),
+            Paths.get(hardcodedPath, gradleOutputFile).toFile()
+        )
+
+        concatenateFiles(allFiles, Paths.get(hardcodedPath, allOutputFile).toString())
+    }
+}
+
+fun concatenateFiles(files: List<File>, outputFile: String) {
+    Files.write(
+        Paths.get(outputFile),
+        "".toByteArray(),
+        StandardOpenOption.CREATE,
+        StandardOpenOption.TRUNCATE_EXISTING
+    )
+    files.forEach { file ->
+        val fileNameInfo = "\n****** ${file.absolutePath.uppercase(Locale.getDefault())}******\n\n"
+        Files.write(Paths.get(outputFile), fileNameInfo.toByteArray(), StandardOpenOption.APPEND)
+        Files.write(Paths.get(outputFile), file.readBytes(), StandardOpenOption.APPEND)
+    }
+}
+
+fun setUIFont(font: Font) {
+    val keys: Enumeration<Any> = UIManager.getDefaults().keys()
+    while (keys.hasMoreElements()) {
+        val key = keys.nextElement()
+        val value = UIManager.get(key)
+        if (value is FontUIResource) {
+            UIManager.put(key, font)
+        }
+    }
+}
